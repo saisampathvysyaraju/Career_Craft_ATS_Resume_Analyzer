@@ -1,118 +1,181 @@
-'''
-from dotenv import load_dotenv  
-
-load_dotenv() ## load all the environment variables
-
-import streamlit as st 
-import os
-import google.generativeai as genai 
-from PIL import Image 
-
-# initilize streamlit app
-st.set_page_config(page_title="GeminiDecode: Multilanguage Document Extraction by Gemini Pro")
-
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
-
-## Function to load Google Gemini Pro Vision API And get response
-
-def get_gemini_repsonse (input, image, prompt):
-    model=genai.GenerativeModel('gemini-pro-vision')
-    response=model.generate_content([input, image[0], prompt])
-    return response.text
-
-# input=st.text_input("Input Prompt:", key="input")
-uploaded_file=st.file_uploader("Choose an image of the document: ",type=["jpg","jpeg","png"])
-image=""
-if uploaded_file is not None:
-    image=Image.open(uploaded_file)
-    st.image(image, caption="Uploaded Image", use_column_width=True)
-submit=st.button("Tell me about the document")
-
-input_prompt="""
-You are expert in understanding invoices.
-We will upload a image as invoice and you will have to answer any questions based on the uploaded invoce image.
-"""
-
-st.header("GeminiDecode: Multilanguage Document Extraction by Gemini Pro")
-text= "Utilizing Gemini Pro AI, this project effortlessly extracts vital information + \
-from diverse multilingual documents, transcending language barriers with \nprecision and +\
-efficiency for enhanced productivity and decision-making."
-styled_text = f"<span style='font-family:serif;'>{text}</span>"
-st.markdown(styled_text, unsafe_allow_html=True)
-
-# If submit button is clicked
-if submit:
-   image_data=input_image_details(uploaded_file)
-   response=get_gemini_response(input_prompt, image_data, image)
-   st.subheader("The response is")
-   st.write(response)
-'''
-
-import os
-from dotenv import load_dotenv
 import streamlit as st
-from PIL import Image
+from dotenv import load_dotenv
 import google.generativeai as genai
+import os
+import PyPDF2
+from PIL import Image
+from streamlit_extras import add_vertical_space as avs
 
 # Load environment variables
 load_dotenv()
 
-# Set Streamlit page configuration as the first command
-st.set_page_config(page_title="GeminiDecode: Multilanguage Document Extraction by Gemini Pro")
+# Streamlit configuration
+st.set_page_config(page_title="ATS Resume Analyzer", layout="wide")
 
-# Configure the API key
-api_key = os.getenv("GEMINI_API_KEY")
-if not api_key:
-    st.error("API key not found. Please set GEMINI_API_KEY in your environment.")
-    st.stop()
-
-genai.configure(api_key=api_key)
-
-# Initialize the Streamlit app layout
-st.header("GeminiDecode: Multilanguage Document Extraction by Gemini Pro")
-
-text = (
-    "Utilizing Gemini Pro AI, this project effortlessly extracts vital information from diverse "
-    "multilingual documents, transcending language barriers with precision and efficiency for "
-    "enhanced productivity and decision-making."
-)
-styled_text = f"<span style='font-family:serif;'>{text}</span>"
-st.markdown(styled_text, unsafe_allow_html=True)
-
-# Image uploader
-uploaded_file = st.file_uploader("Choose an image of the document:", type=["jpg", "jpeg", "png"])
-image = None
-
-if uploaded_file is not None:
-    image = Image.open(uploaded_file)
-    st.image(image, caption="Uploaded Image", use_column_width=True)
-
-# Input prompt
-input_prompt = """
-You are an expert in understanding invoices. 
-Identifi the language of the invoics, convert into english language from any other languages if not in english.
-Analyze the uploaded image and extract key details such as the 
-Ex: reciepent name, total amount, bill generated date, due date, merchant name, and invoice number. 
-(give the parameter only if available in the invoice considering the mentioned parameters as examples)
-Give all the parameters available in the invoice and their respective content associated.
-Always give the output in a structured tabular format only.
+# Custom CSS for background color and other UI elements
+custom_css = """
+    <style>
+    body {
+        background-color: #35CD8C;
+    }
+    .stApp {
+        background-color: #35CD8C;
+    }
+    textarea {
+        background-color: #d9f5ec !important;
+        color: #1e5f4b !important;
+        font-size: 16px !important;
+        border: 2px solid #1e5f4b !important;
+    }
+    .stFileUploadDragAndDrop {
+        background-color: #e5f9f2 !important;
+        border: 2px dashed #1e5f4b !important;
+    }
+    .stFileUploadLabel {
+        color: #1e5f4b !important;
+        font-weight: bold;
+    }
+    div.stButton > button {
+        background-color: #1e5f4b !important;
+        color: white !important;
+        font-size: 16px !important;
+        border-radius: 10px !important;
+        height: 50px;
+        width: 100%;
+        border: none;
+        transition: background-color 0.3s ease;
+    }
+    div.stButton > button:hover {
+        background-color: #146145 !important;
+    }
+    </style>
 """
+st.markdown(custom_css, unsafe_allow_html=True)
+
+# Configure Google Generative AI
+genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+
+# Initialize model
+model = genai.GenerativeModel(
+    model_name='gemini-1.5-pro',
+    tools='code_execution'
+)
+
+# Function to get the Gemini response
+def get_gemini_response(resume_text, jd_text):
+    input_prompt = f"""
+        As an experienced ATS (Applicant Tracking System), proficient in the technical domain encompassing
+        Software Engineering, Data Science, Data Analysis, Big Data Engineering, Web Developer, Mobile App
+        Developer, DevOps Engineer, Machine Learning Engineer, Cybersecurity Analyst, Cloud Solutions Architect,
+        Database Administrator, Network Engineer, AI Engineer, Systems Analyst, Full Stack Developer, UI/UX
+        Designer, IT Project Manager, and additional specialized areas, your objective is to meticulously assess
+        resumes against provided job descriptions. In a fiercely competitive job market, your expertise is crucial
+        in offering top-notch guidance for resume enhancement. Assign precise matching percentages based on the JD
+        (Job Description) and meticulously identify any missing keywords with utmost accuracy.
+
+        Resume: {resume_text}
+        Job Description: {jd_text}
+
+        I want the response in the following structure:
+        The first line indicates the percentage match with the job description (JD).
+        The second line presents a list of missing keywords.
+        The third section provides a profile summary.
+
+        Mention the title for all the three sections.
+        While generating the response, put some space to separate all three sections.
+        """
+
+    response = model.generate_content(input_prompt)
+    if response.candidates and len(response.candidates) > 0:
+        return response.candidates[0].content.parts[0].text
+    return "Error: Unable to retrieve response."
+    
+# Extract text from PDF
+def input_pdf_text(upload_file):
+    reader = PyPDF2.PdfReader(upload_file)
+    text = ''.join([reader.pages[i].extract_text() for i in range(len(reader.pages))])
+    return text
+
+# Load and rotate images
+img1 = Image.open("images/icon1.png").rotate(-90, expand=True)
+img2 = Image.open("images/icon2.png").rotate(-90, expand=True)
+img3 = Image.open("images/icon3.png").rotate(-90, expand=True)
+
+# Streamlit UI
+avs.add_vertical_space(4)
+col1, col2 = st.columns([3, 2])
+
+with col1:
+    st.title("CareerCraft")
+    st.header("Navigate the Job Market with Confidence!")
+    st.markdown(
+        """<p style='text-align: justify;'>Introducing CareerCraft, an ATS-Optimized Resume Analyzer...</p>""",
+        unsafe_allow_html=True
+    )
+
+with col2:
+    st.image('https://cdn.dribbble.com/userupload/12500996/file/original-b458fe398a6d7f4e9999ce66ec856ff9.gif', use_column_width=True)
 
 
-# Submit button
-submit = st.button("Tell me about the document")
+# Displaying offerings
+avs.add_vertical_space(10)
+col1, col2 = st.columns([3, 2])
 
-# Function to get response from Gemini
-def get_gemini_response(input, image, prompt):
-    model = genai.GenerativeModel(model_name="gemini-1.5-flash")
-    # Directly pass the PIL Image object
-    response = model.generate_content([input, image, prompt])
-    return response.text
+with col2:
+    st.header("Wide Range of Offerings")
+    st.write('ATS-Optimized Resume Analysis')
+    st.write('Resume Optimization')
+    st.write('Skill Enhancement')
+    st.write('Career Progression Guidance')
+    st.write('Tailored Profile Summaries')
+    st.write('Streamlined Application Process')
+    st.write('Personalized Recommendations')
+    st.write('Efficient Career Navigation')
 
-# If the submit button is clicked
-if submit and uploaded_file is not None:
-    response = get_gemini_response(input_prompt, image, input_prompt)
-    st.subheader("The response is")
-    st.write(response)
+with col1:
+    st.image(img1, use_column_width=True)  # Display rotated image
 
+# Job description and resume input
+avs.add_vertical_space(10)
+col1, col2 = st.columns([3, 2])
 
+with col1:
+    st.markdown("<h1 style='text-align: center;'>Embark on Your Career Adventure</h1>", unsafe_allow_html=True)
+    jd = st.text_area("Paste the Job Description")
+    uploaded_file = st.file_uploader("Upload Your Resume (PDF)", type="pdf", help="Upload the PDF of your resume")
+
+    submit = st.button("Submit")
+
+    if submit:
+        if uploaded_file is not None and jd.strip():
+            resume_text = input_pdf_text(uploaded_file)
+            response = get_gemini_response(resume_text, jd)
+            st.header("ATS Analysis Results")
+            st.write(response)
+        else:
+            st.error("Please upload a resume and provide the job description.")
+
+with col2:
+    st.image(img2, use_column_width=True)  # Display rotated image
+
+# FAQ section
+avs.add_vertical_space(10)
+col1, col2 = st.columns([2, 3])
+
+with col2:
+    st.markdown("<h1 style='text-align: center;'>FAQ</h1>", unsafe_allow_html=True)
+    st.write("**Question:** How does CareerCraft analyze resumes and job descriptions?")
+    st.write("**Answer:** CareerCraft uses advanced algorithms to analyze resumes and job descriptions, identifying key keywords and assessing compatibility.")
+    
+    avs.add_vertical_space(3)
+    
+    st.write("**Question:** Can CareerCraft suggest improvements for my resume?")
+    st.write("**Answer:** Yes, CareerCraft provides personalized recommendations to optimize your resume, including suggestions for missing keywords.")
+    
+    avs.add_vertical_space(3)
+    
+    st.write("**Question:** Is CareerCraft suitable for both entry-level and experienced professionals?")
+    st.write("**Answer:** Absolutely! CareerCraft caters to job seekers at all career stages, offering tailored insights and guidance to enhance their resumes.")
+
+with col1:
+    st.image(img3, use_column_width=True)  # Display rotated images

@@ -1,7 +1,6 @@
 streamlit
+streamlit-extras
 google-generativeai
 python-dotenv
-langchain
-pyPDF2
-chromadb
-faiss-cpu
+PyPDF2
+Pillow
