@@ -1,6 +1,6 @@
 import streamlit as st
 from dotenv import load_dotenv
-from google import genai
+import google.generativeai as genai
 import os
 import PyPDF2
 from PIL import Image
@@ -52,7 +52,14 @@ custom_css = """
 """
 st.markdown(custom_css, unsafe_allow_html=True)
 
-client = genai.Client()
+# Configure Google Generative AI
+genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+
+# Initialize model
+model = genai.GenerativeModel(
+    model_name='gemini-1.5-pro',
+    tools='code_execution'
+)
 
 # Function to get the Gemini response
 def get_gemini_response(resume_text, jd_text):
@@ -77,17 +84,12 @@ def get_gemini_response(resume_text, jd_text):
         Mention the title for all the three sections.
         While generating the response, put some space to separate all three sections.
         """
-    try:
-        response = client.models.generate_content(
-            model="gemini-1.5-flash",
-            contents=[input_prompt]
-        )
-        if response.candidates and len(response.candidates) > 0:
-            return response.candidates[0].content.parts[0].text
-        return "Error: Unable to retrieve response."
-    except Exception as e:
-        return f"An error occurred: {e}"
 
+    response = model.generate_content(input_prompt)
+    if response.candidates and len(response.candidates) > 0:
+        return response.candidates[0].content.parts[0].text
+    return "Error: Unable to retrieve response."
+    
 # Extract text from PDF
 def input_pdf_text(upload_file):
     reader = PyPDF2.PdfReader(upload_file)
@@ -148,14 +150,8 @@ with col1:
         if uploaded_file is not None and jd.strip():
             resume_text = input_pdf_text(uploaded_file)
             response = get_gemini_response(resume_text, jd)
-
-            # --- MODIFICATION STARTS HERE ---
-            # Replace <br>'s with newline characters for plain text display
-            cleaned_response = response.replace('<br>', '\n')
-            # --- MODIFICATION ENDS HERE ---
-
             st.header("ATS Analysis Results")
-            st.write(cleaned_response) # Display the cleaned response
+            st.write(response)
         else:
             st.error("Please upload a resume and provide the job description.")
 
@@ -170,14 +166,14 @@ with col2:
     st.markdown("<h1 style='text-align: center;'>FAQ</h1>", unsafe_allow_html=True)
     st.write("**Question:** How does CareerCraft analyze resumes and job descriptions?")
     st.write("**Answer:** CareerCraft uses advanced algorithms to analyze resumes and job descriptions, identifying key keywords and assessing compatibility.")
-
+    
     avs.add_vertical_space(3)
-
+    
     st.write("**Question:** Can CareerCraft suggest improvements for my resume?")
     st.write("**Answer:** Yes, CareerCraft provides personalized recommendations to optimize your resume, including suggestions for missing keywords.")
-
+    
     avs.add_vertical_space(3)
-
+    
     st.write("**Question:** Is CareerCraft suitable for both entry-level and experienced professionals?")
     st.write("**Answer:** Absolutely! CareerCraft caters to job seekers at all career stages, offering tailored insights and guidance to enhance their resumes.")
 
