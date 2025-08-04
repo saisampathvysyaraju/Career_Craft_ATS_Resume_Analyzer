@@ -16,10 +16,10 @@ st.set_page_config(page_title="ATS Resume Analyzer", layout="wide")
 custom_css = """
     <style>
     body {
-        background-color: #3CD795;
+        background-color: #34cd8c;
     }
     .stApp {
-        background-color: #3CD795;
+        background-color: #34cd8c;
     }
     textarea {
         background-color: #d9f5ec !important;
