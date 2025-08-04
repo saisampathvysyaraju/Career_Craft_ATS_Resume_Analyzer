@@ -112,7 +112,8 @@ with col1:
     )
 
 with col2:
-    st.image('https://cdn.dribbble.com/userupload/12500996/file/original-b458fe398a6d7f4e9999ce66ec856ff9.gif', use_container_width=True)
+    # Changed use_container_width to use_column_width
+    st.image('https://cdn.dribbble.com/userupload/12500996/file/original-b458fe398a6d7f4e9999ce66ec856ff9.gif', use_column_width=True)
 
 
 # Displaying offerings
@@ -131,7 +132,8 @@ with col2:
     st.write('Efficient Career Navigation')
 
 with col1:
-    st.image(img1, use_container_width=True)  # Display rotated image
+    # Changed use_container_width to use_column_width
+    st.image(img1, use_column_width=True)  # Display rotated image
 
 # Job description and resume input
 avs.add_vertical_space(10)
@@ -149,10 +151,8 @@ with col1:
             resume_text = input_pdf_text(uploaded_file)
             response = get_gemini_response(resume_text, jd)
 
-            # --- MODIFICATION STARTS HERE ---
             # Replace <br>'s with newline characters for plain text display
             cleaned_response = response.replace('<br>', '\n')
-            # --- MODIFICATION ENDS HERE ---
 
             st.header("ATS Analysis Results")
             st.write(cleaned_response) # Display the cleaned response
@@ -160,7 +160,8 @@ with col1:
             st.error("Please upload a resume and provide the job description.")
 
 with col2:
-    st.image(img2, use_container_width=True)  # Display rotated image
+    # Changed use_container_width to use_column_width
+    st.image(img2, use_column_width=True)  # Display rotated image
 
 # FAQ section
 avs.add_vertical_space(10)
@@ -182,4 +183,5 @@ with col2:
     st.write("**Answer:** Absolutely! CareerCraft caters to job seekers at all career stages, offering tailored insights and guidance to enhance their resumes.")
 
 with col1:
-    st.image(img3, use_container_width=True)  # Display rotated images
+    # Changed use_container_width to use_column_width
+    st.image(img3, use_column_width=True)  # Display rotated images
